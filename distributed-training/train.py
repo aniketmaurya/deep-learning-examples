@@ -9,13 +9,6 @@ import torchvision.transforms as transforms
 from torchmetrics.classification import Accuracy
 
 
-def imshow(img):
-    img = img / 2 + 0.5  # unnormalize
-    npimg = img.numpy()
-    plt.imshow(np.transpose(npimg, (1, 2, 0)))
-    plt.show()
-
-
 class Net(nn.Module):
     def __init__(self):
         super().__init__()
@@ -71,7 +64,6 @@ class LitModel(pl.LightningModule):
 
 
 def main():
-
     transform = transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
     )
@@ -112,5 +104,5 @@ def main():
     trainer.validate(model, val_loader)
 
 
-if __name__ == "main":
+if __name__ == "__main__":
     main()
