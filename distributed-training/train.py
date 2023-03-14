@@ -9,6 +9,43 @@ import torchvision.transforms as transforms
 from torchmetrics.classification import Accuracy
 
 
+def load_data():
+    transform = transforms.Compose(
+        [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
+    )
+
+    batch_size = 8
+
+    train_set = torchvision.datasets.CIFAR10(
+        root="~/data", train=True, download=True, transform=transform
+    )
+    train_loader = torch.utils.data.DataLoader(
+        train_set, batch_size=batch_size, shuffle=True, num_workers=4
+    )
+
+    val_set = torchvision.datasets.CIFAR10(
+        root="~/data", train=False, download=True, transform=transform
+    )
+    val_loader = torch.utils.data.DataLoader(
+        val_set, batch_size=batch_size, shuffle=False, num_workers=4
+    )
+
+    classes = (
+        "plane",
+        "car",
+        "bird",
+        "cat",
+        "deer",
+        "dog",
+        "frog",
+        "horse",
+        "ship",
+        "truck",
+    )
+
+    return train_loader, val_loader
+
+
 class Net(nn.Module):
     def __init__(self):
         super().__init__()
@@ -60,46 +97,15 @@ class LitModel(pl.LightningModule):
         loss = self.common_step(x, y, "val")
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.model.parameters(), lr=0.001, momentum=0.9)
+        return torch.optim.Adam(self.model.parameters(), lr=0.001)
 
 
 def main():
-    transform = transforms.Compose(
-        [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
-    )
-
-    batch_size = 8
-
-    train_set = torchvision.datasets.CIFAR10(
-        root="~/data", train=True, download=True, transform=transform
-    )
-    train_loader = torch.utils.data.DataLoader(
-        train_set, batch_size=batch_size, shuffle=True, num_workers=4
-    )
-
-    val_set = torchvision.datasets.CIFAR10(
-        root="~/data", train=False, download=True, transform=transform
-    )
-    val_loader = torch.utils.data.DataLoader(
-        val_set, batch_size=batch_size, shuffle=False, num_workers=4
-    )
-
-    classes = (
-        "plane",
-        "car",
-        "bird",
-        "cat",
-        "deer",
-        "dog",
-        "frog",
-        "horse",
-        "ship",
-        "truck",
-    )
+    train_loader, val_loader = load_data()
 
     model = LitModel()
 
-    trainer = pl.Trainer(max_epochs=2, devices=2)
+    trainer = pl.Trainer(max_epochs=2, devices=2, strategy="ddp_spawn")
     trainer.fit(model=model, train_dataloaders=train_loader, val_dataloaders=val_loader)
     trainer.validate(model, val_loader)
 
