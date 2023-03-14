@@ -1,6 +1,4 @@
 import lightning.pytorch as pl
-import matplotlib.pyplot as plt
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -71,7 +69,7 @@ class LitModel(pl.LightningModule):
         super().__init__()
         self.model = Net()
         self.criterion = nn.CrossEntropyLoss()
-        # self.accuracy = Accuracy("multiclass", num_classes=10)
+        self.accuracy = Accuracy("multiclass", num_classes=10)
 
     def forward(self, x):
         return self.model(x)
@@ -79,11 +77,13 @@ class LitModel(pl.LightningModule):
     def common_step(self, x, y, stage):
         logits = self.model(x)
         loss = self.criterion(logits, y)
-        # acc = self.accuracy(logits, y)
+        acc = self.accuracy(logits, y)
         self.log_dict(
             {
                 f"{stage}/loss": loss,
-            }
+                f"{stage}/accuracy": acc,
+            },
+            sync_dist=True
         )
         return loss
 
@@ -104,8 +104,9 @@ def main():
     train_loader, val_loader = load_data()
 
     model = LitModel()
+    model.log_dict
 
-    trainer = pl.Trainer(max_epochs=2, devices=2, strategy="ddp_spawn")
+    trainer = pl.Trainer(max_epochs=2, devices=2, strategy="ddp")
     trainer.fit(model=model, train_dataloaders=train_loader, val_dataloaders=val_loader)
     trainer.validate(model, val_loader)
 
