@@ -104,7 +104,6 @@ def main():
     train_loader, val_loader = load_data()
 
     model = LitModel()
-    model.log_dict
 
     trainer = pl.Trainer(max_epochs=2, devices=2, strategy="ddp")
     trainer.fit(model=model, train_dataloaders=train_loader, val_dataloaders=val_loader)
