@@ -12,7 +12,7 @@ def load_data():
         [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
     )
 
-    batch_size = 8
+    batch_size = 16
 
     train_set = torchvision.datasets.CIFAR10(
         root="~/data", train=True, download=True, transform=transform
@@ -83,7 +83,6 @@ class LitModel(pl.LightningModule):
                 f"{stage}/loss": loss,
                 f"{stage}/accuracy": acc,
             },
-            sync_dist=True
         )
         return loss
 
