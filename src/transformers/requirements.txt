@@ -1,0 +1,3 @@
+transformers
+datasets
+lightning>=2.0
