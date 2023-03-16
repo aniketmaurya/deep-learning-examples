@@ -56,7 +56,7 @@ class LitModel(L.LightningModule):
     def common_step(self, x, y, stage):
         logits = self.model(x)
         loss = self.criterion(logits, y)
-        self.log(f"{stage}/loss", loss, on_epoch=True)
+        # self.log(f"{stage}/loss", loss, on_epoch=True)
         return loss
 
     def training_step(self, batch, batch_idx):
