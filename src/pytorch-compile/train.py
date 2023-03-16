@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
 import torchvision.transforms as transforms
-
+from timm import create_model
 
 def load_data():
     transform = transforms.Compose(
@@ -48,6 +48,7 @@ class LitModel(L.LightningModule):
     def __init__(self):
         super().__init__()
         self.model = Net()
+        # self.model = create_model("resnet18", num_classes=10)
         self.criterion = nn.CrossEntropyLoss()
 
     def forward(self, x):
@@ -79,8 +80,8 @@ def main():
     )
     print(f"time taken to train unoptimized model: {unoptimized_t}")
 
-    compiled_model = torch.compile(LitModel(), mode="reduce-overhead").to("cuda")
-    compiled_model(torch.randn(32, 3, 32, 32).to("cuda"))  # warmup
+    compiled_model = torch.compile(LitModel(), mode="reduce-overhead")
+    compiled_model(torch.randn(32, 3, 32, 32))  # warmup
     optimized_t = benchmark_trainer(
         compiled_model,
         train_dataloaders=train_loader,
