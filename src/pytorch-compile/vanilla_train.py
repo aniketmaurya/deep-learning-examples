@@ -1,10 +1,12 @@
-import torch
-from tqdm import tqdm
 from time import perf_counter
+
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
 import torchvision.transforms as transforms
+from tqdm import tqdm
+
 
 def load_data():
     transform = transforms.Compose(
@@ -42,13 +44,10 @@ class Net(nn.Module):
         x = self.fc3(x)
         return x
 
-
     def training_step(self, batch, batch_idx):
         x, y = batch
         loss = self.common_step(x, y, "train")
         return loss
-
-
 
 
 def main():
@@ -61,8 +60,8 @@ def main():
 
     t0 = perf_counter()
     for i in range(2):
-        for (x, y) in tqdm(train_loader):
-            x,  y = x.to(device), y.to(device)
+        for x, y in tqdm(train_loader):
+            x, y = x.to(device), y.to(device)
             optimizer.zero_grad()
             logits = model(x)
             loss = criterion(logits, y)
@@ -70,7 +69,7 @@ def main():
             optimizer.step()
     t1 = perf_counter()
 
-    print(t1-t0)
+    print(t1 - t0)
 
 
 if __name__ == "__main__":

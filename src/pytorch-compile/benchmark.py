@@ -1,28 +1,19 @@
-from time import perf_counter
+import torch
+from torchvision.models import resnet18 as resnet
+
+from benchmark_utils import benchmark_inference
+
+device = torch.device("cuda") if torch.cuda.is_available() else "cpu"
 
 
-def benchmark_inference(model, inputs, trials=10):
-    # warmup
-    model(inputs)
+model = resnet(weights=True).to(device)
+compiled_model = torch.compile(model, mode="reduce-overhead")
 
-    t0 = perf_counter()
-    for i in range(trials):
-        model(inputs)
-    t1 = perf_counter()
-    return t1 - t0
+x = torch.randn(1, 3, 224, 224).to(device)
 
-def benchmark_trainer(model, **kwargs):
-    import lightning as L
-    
-    trainer = L.Trainer(
-        max_epochs=2,
-        devices=1,
-        logger=False,
-        enable_progress_bar=False,
-        enable_model_summary=False,
-        enable_checkpointing=False,
-    )
-    t0 = perf_counter()
-    trainer.fit(model, **kwargs)
-    t1 = perf_counter()
-    return t1 - t0
+
+unoptimized_t = benchmark_inference(model, x)
+print(unoptimized_t)
+
+optimized_t = benchmark_inference(compiled_model, x)
+print(optimized_t)

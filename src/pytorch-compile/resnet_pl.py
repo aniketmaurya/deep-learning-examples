@@ -1,11 +1,13 @@
+from time import perf_counter
+
 import lightning as L
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torchvision
 import torchvision.transforms as transforms
+from timm import create_model
 
-from benchmark_utils import benchmark_trainer
+from benchmark import benchmark_trainer
 
 
 def load_data():
@@ -25,30 +27,10 @@ def load_data():
     return train_loader
 
 
-class Net(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.conv1 = nn.Conv2d(3, 6, 5)
-        self.pool = nn.MaxPool2d(2, 2)
-        self.conv2 = nn.Conv2d(6, 16, 5)
-        self.fc1 = nn.Linear(16 * 5 * 5, 120)
-        self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, 10)
-
-    def forward(self, x):
-        x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
-        x = torch.flatten(x, 1)  # flatten all dimensions except batch
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        return x
-
-
 class LitModel(L.LightningModule):
     def __init__(self):
         super().__init__()
-        self.model = Net()
+        self.model = create_model("resnet18", num_classes=10)
         self.criterion = nn.CrossEntropyLoss()
 
     def forward(self, x):
@@ -57,7 +39,6 @@ class LitModel(L.LightningModule):
     def common_step(self, x, y, stage):
         logits = self.model(x)
         loss = self.criterion(logits, y)
-        self.log(f"{stage}/loss", loss, on_epoch=True)
         return loss
 
     def training_step(self, batch, batch_idx):
@@ -73,20 +54,16 @@ def main():
     train_loader = load_data()
 
     model = LitModel()
-
-    unoptimized_t = benchmark_trainer(
-        model,
-        train_dataloaders=train_loader,
+    trainer = L.Trainer(
+        max_epochs=1,
+        devices=1,
+        logger=False,
     )
-    print(f"time taken to train unoptimized model: {unoptimized_t}")
-
-    compiled_model = torch.compile(LitModel())
-    compiled_model(torch.randn(32, 3, 32, 32))  # warmup
-    optimized_t = benchmark_trainer(
-        compiled_model,
-        train_dataloaders=train_loader,
-    )
-    print(f"time taken to train optimized model: {optimized_t}")
+    t0 = perf_counter()
+    trainer.fit(model, train_dataloders=train_loader)
+    t1 = perf_counter()
+    optimized_t = t1 - t0
+    print(f"time taken to train un-compiled model: {optimized_t}")
 
 
 if __name__ == "__main__":
