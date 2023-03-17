@@ -1,2 +1,3 @@
 aclImdb/
 lightning_logs/
+*.ckpt
