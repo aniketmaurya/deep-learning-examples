@@ -25,21 +25,26 @@ def load_data():
     return train_loader
 
 
-device = torch.device("cuda")
-train_loader = load_data()
-model = create_model("resnet50", num_classes=10).to(device)
-criterion = nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+def main():
+    device = torch.device("cuda")
+    train_loader = load_data()
+    model = create_model("resnet50", num_classes=10).to(device)
+    criterion = nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
-t0 = perf_counter()
-for i in range(2):
-    for x, y in tqdm(train_loader):
-        x, y = x.to(device), y.to(device)
-        optimizer.zero_grad()
-        logits = model(x)
-        loss = criterion(logits, y)
-        loss.backward()
-        optimizer.step()
-t1 = perf_counter()
+    t0 = perf_counter()
+    for i in range(2):
+        for x, y in tqdm(train_loader):
+            x, y = x.to(device), y.to(device)
+            optimizer.zero_grad()
+            logits = model(x)
+            loss = criterion(logits, y)
+            loss.backward()
+            optimizer.step()
+    t1 = perf_counter()
 
-print(t1 - t0)
+    print(t1 - t0)
+
+
+if __name__ == "__main__":
+    main()
