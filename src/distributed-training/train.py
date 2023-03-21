@@ -1,4 +1,4 @@
-import lightning.pytorch as pl
+import lightning as L
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -64,7 +64,7 @@ class Net(nn.Module):
         return x
 
 
-class LitModel(pl.LightningModule):
+class LitModel(L.LightningModule):
     def __init__(self):
         super().__init__()
         self.model = Net()
@@ -104,7 +104,7 @@ def main():
 
     model = LitModel()
 
-    trainer = pl.Trainer(max_epochs=2, devices=2, strategy="ddp")
+    trainer = L.Trainer(max_epochs=2, devices=2, strategy="ddp")
     trainer.fit(model=model, train_dataloaders=train_loader, val_dataloaders=val_loader)
     trainer.validate(model, val_loader)
 
