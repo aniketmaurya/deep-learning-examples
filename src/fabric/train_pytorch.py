@@ -2,7 +2,6 @@ from time import perf_counter
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torchvision
 import torchvision.transforms as transforms
 from timm import create_model
@@ -26,27 +25,21 @@ def load_data():
     return train_loader
 
 
-def main():
-    device = torch.device("cuda")
-    train_loader = load_data()
-    model = create_model("resnet18", num_classes=10).to(device)
-    torch.compile(model, mode="reduce-overhead")
-    criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+device = torch.device("cuda")
+train_loader = load_data()
+model = create_model("resnet50", num_classes=10).to(device)
+criterion = nn.CrossEntropyLoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
-    t0 = perf_counter()
-    for i in range(2):
-        for x, y in tqdm(train_loader):
-            x, y = x.to(device), y.to(device)
-            optimizer.zero_grad()
-            logits = model(x)
-            loss = criterion(logits, y)
-            loss.backward()
-            optimizer.step()
-    t1 = perf_counter()
+t0 = perf_counter()
+for i in range(2):
+    for x, y in tqdm(train_loader):
+        x, y = x.to(device), y.to(device)
+        optimizer.zero_grad()
+        logits = model(x)
+        loss = criterion(logits, y)
+        loss.backward()
+        optimizer.step()
+t1 = perf_counter()
 
-    print(t1 - t0)
-
-
-if __name__ == "__main__":
-    main()
+print(t1 - t0)
