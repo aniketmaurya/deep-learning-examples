@@ -2,7 +2,6 @@ from time import perf_counter
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torchvision
 import torchvision.transforms as transforms
 from lightning.fabric import Fabric
@@ -33,7 +32,7 @@ def load_data():
 def main():
     train_loader = load_data()
 
-    model = model = create_model("resnet18", num_classes=10)
+    model = model = create_model("resnet50", num_classes=10)
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
