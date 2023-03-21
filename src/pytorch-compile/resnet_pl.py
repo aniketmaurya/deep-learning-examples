@@ -5,9 +5,8 @@ import torch
 import torch.nn as nn
 import torchvision
 import torchvision.transforms as transforms
-from timm import create_model
-
 from benchmark import benchmark_trainer
+from timm import create_model
 
 
 def load_data():

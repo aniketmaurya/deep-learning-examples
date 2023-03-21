@@ -1,7 +1,6 @@
 import torch
-from torchvision.models import resnet18 as resnet
-
 from benchmark_utils import benchmark_inference
+from torchvision.models import resnet18 as resnet
 
 device = torch.device("cuda") if torch.cuda.is_available() else "cpu"
 

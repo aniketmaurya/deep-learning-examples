@@ -5,11 +5,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
 import torchvision.transforms as transforms
-from tqdm import tqdm
 from lightning.fabric import Fabric
+from tqdm import tqdm
 
-fabric = Fabric()
+fabric = Fabric(accelerator="auto", devices="auto", strategy="auto")
 fabric.launch()
+
 
 def load_data():
     transform = transforms.Compose(
@@ -55,7 +56,7 @@ class Net(nn.Module):
 
 def main():
     train_loader = load_data()
-    
+
     model = Net()
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
