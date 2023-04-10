@@ -1,3 +1,5 @@
 aclImdb/
 lightning_logs/
 *.ckpt
+__pycache__/
+.mypy_cache/
