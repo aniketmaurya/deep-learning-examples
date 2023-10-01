@@ -2,8 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from pytorch_lightning.demos import Transformer, WikiText2
-from pytorch_lightning.strategies import FSDPStrategy
 from torch.utils.data import DataLoader
+from pytorch_lightning.callbacks import RichProgressBar
+from pytorch_lightning.callbacks import DeviceStatsMonitor
 
 import pytorch_lightning as pl
 
@@ -40,6 +41,8 @@ train_dataloader = DataLoader(dataset)
 model = LanguageModel(vocab_size=dataset.vocab_size)
 
 # Trainer
-trainer = pl.Trainer(accelerator="cuda", devices=1)
+callbacks = [RichProgressBar(), DeviceStatsMonitor()]
+trainer = pl.Trainer(accelerator="cuda", devices=1, callbacks=callbacks)
 trainer.fit(model, train_dataloader)
 trainer.print(torch.cuda.memory_summary())
+trainer.print(f"Memory used: {torch.cuda.max_memory_allocated() / 1e9:.02f} GB")
