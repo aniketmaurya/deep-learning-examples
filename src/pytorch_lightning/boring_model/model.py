@@ -1,6 +1,6 @@
 import lightning as L
-from torch import nn
 import torch
+from torch import nn
 
 
 class Dataset(torch.utils.data.Dataset):
@@ -13,7 +13,9 @@ class Dataset(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         x, y = self.data[idx] * 1.0, self.data[idx] * 2.0
-        x, y = torch.tensor(x, dtype=torch.float32), torch.tensor(y, dtype=torch.float32)
+        x, y = torch.tensor(x, dtype=torch.float32), torch.tensor(
+            y, dtype=torch.float32
+        )
         return x, y
 
 
