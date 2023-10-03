@@ -57,7 +57,6 @@ class LightningGPTModule(L.LightningModule):
         super().__init__()
         self.config = config
         self.module: Optional[torch.nn.Module] = None
-        self.measured_flops: Optional[int] = None
 
     def configure_model(self) -> None:
         self.module = GPT(self.config)
@@ -71,23 +70,6 @@ class LightningGPTModule(L.LightningModule):
             betas=(beta1, beta2),
             foreach=False,
         )
-
-    def on_fit_start(self) -> None:
-        trainer = self.trainer
-        with torch.device("meta"):
-            meta_model = GPT(self.module.config)
-            # "estimated" is not as precise as "measured". Estimated is optimistic but widely used in the wild.
-            # When comparing MFU or FLOP numbers with other projects that use estimated FLOPs,
-            # consider setting `self.measured_flops = estimated_flops` instead
-            estimated_flops = estimate_flops(meta_model) * micro_batch_size
-            self.print(
-                f"Estimated TFLOPs: {estimated_flops * trainer.world_size / 1e12:.2f}"
-            )
-            x = torch.randint(0, 1, (micro_batch_size, meta_model.max_seq_length))
-            self.measured_flops = measure_flops(meta_model, x)
-            self.print(
-                f"Measured TFLOPs: {self.measured_flops * trainer.world_size / 1e12:.2f}"
-            )
 
     def on_train_batch_start(self, batch: Any, batch_idx: int) -> None:
         if not decay_lr:
@@ -124,7 +106,7 @@ def main(
         # the argument is not available in the Trainer strategy, but it's the default anyways
         # state_dict_type="full",
         limit_all_gathers=True,
-        cpu_offload=True,
+        cpu_offload=False,
     )
 
     logger = CSVLogger("out", name, flush_logs_every_n_steps=log_interval)
