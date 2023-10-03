@@ -1,3 +1,4 @@
+# Code from Lit-GPT https://github.com/Lightning-AI/lit-gpt
 import math
 import sys
 import time
@@ -120,7 +121,7 @@ def main(
         dirpath=out_dir, every_n_train_steps=save_interval, save_last=True, verbose=True
     )
     trainer = L.Trainer(
-        devices=devices,
+        devices=[1,2,3,4,5,7],
         strategy=strategy,
         precision=precision,
         logger=logger,
