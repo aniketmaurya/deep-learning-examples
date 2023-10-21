@@ -1,8 +1,7 @@
 import torch
-from tqdm import tqdm
 from rich.progress import track
-from torch.nn import functional as F
 from torch import nn
+from torch.nn import functional as F
 
 with open("input.txt", "r") as fr:
     text = fr.read()
