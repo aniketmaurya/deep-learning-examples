@@ -16,6 +16,11 @@ n_head = 6
 n_layer = 6
 dropout = 0.2
 
+# -------
+
+torch.manual_seed(1337)
+
+
 with open("input.txt", "r") as fr:
     text = fr.read()
 
@@ -65,6 +70,8 @@ class Head(nn.Module):
         self.query = nn.Linear(n_embd, head_size, bias=False)
         self.value = nn.Linear(n_embd, head_size, bias=False)
         self.register_buffer("tril", torch.tril(torch.ones(block_size, block_size, device=device)))
+
+        self.dropout = nn.Dropout(dropout=dropout)
     
     def forward(self, x):
         B, T, C = x.shape
@@ -74,6 +81,7 @@ class Head(nn.Module):
         wei = q @ k.transpose(-2, -1) * C**-0.5  # (B,T,T)
         wei = wei.masked_fill(self.tril[:T, :T]==0, float('-inf'))  # (B,T,T)
         wei = F.softmax(wei, dim=-1)  # (B, T, T)
+        wei = self.dropout(wei)
         v = self.value(x)  # (B, T, head_size)
         out = wei @ v  # (B, T, head_size)
         return out
@@ -172,6 +180,9 @@ for iter in track(range(max_iter), description="Training..."):
     loss.backward()
     optimizer.step()
 
-context = torch.zeros((1,1), dtype=torch.long)
+try:
+    torch.save(model, "model.pt")
+except:pass
+context = torch.zeros((1,1), dtype=torch.long, device=device)
 print(decode(model.generate(context)[0].cpu().tolist()))
  
