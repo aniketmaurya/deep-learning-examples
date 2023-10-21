@@ -113,7 +113,7 @@ class BigramLanguageModel(nn.Module):
             loss = self.loss_fn(logits, targets)
         return logits, loss
 
-    def generate(self, idx, max_new_tokens=100):  # BT
+    def generate(self, idx, max_new_tokens=200):  # BT
         for _ in range(max_new_tokens):
             idx_cond = idx[:, -block_size:]
             logits, loss = self(idx_cond)  # BTC
