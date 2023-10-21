@@ -107,14 +107,28 @@ class MultiHeadAttention(nn.Module):
     def forward(self, idx):
         return torch.cat([head(idx) for head in self.heads], dim=-1)
 
+class Block(nn.Module):
+    def __init__(self, n_embd, head_size):
+        super().__init__()
+        self.sa_head = MultiHeadAttention(head_size, n_embd//head_size)
+        self.ffwd = FeedForward(n_embd)
+    
+    def forward(self, x):  # (B,T,C)
+        x = self.sa_head(x)
+        x = self.ffwd(x)
+        return x
 
 class BigramLanguageModel(nn.Module):
     def __init__(self) -> None:
         super().__init__()
         self.emb_table = nn.Embedding(vocab_size, n_embd)
         self.positional_embd_table = nn.Embedding(block_size, n_embd)
-        self.sa_head = MultiHeadAttention(4, n_embd//4)
-        self.ffwd = FeedForward(n_embd)
+        self.block = nn.Sequential(
+            Block(n_embd=n_embd, head_size=4),
+            Block(n_embd=n_embd, head_size=4),
+            Block(n_embd=n_embd, head_size=4),
+            Block(n_embd=n_embd, head_size=4),
+        )
         self.lm_head = nn.Linear(n_embd, vocab_size)
         self.loss_fn = nn.CrossEntropyLoss()
 
@@ -123,8 +137,7 @@ class BigramLanguageModel(nn.Module):
         token_emb = self.emb_table(idx)  # B X T X C,  C => n_embd
         positional_emb = self.positional_embd_table(torch.arange(T, device=device))  # TxC
         x = token_emb + positional_emb
-        x = self.sa_head(x)  # (B, T, C)
-        x = self.ffwd(x)  # (B, T, C)
+        x = self.block(x)
         logits = self.lm_head(x)  # (B, T, vocab_size)
         
         B, T, C = logits.shape
