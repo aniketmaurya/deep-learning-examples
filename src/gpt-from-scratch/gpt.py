@@ -72,6 +72,19 @@ class Head(nn.Module):
         v = self.value(x)  # (B, T, head_size)
         out = wei @ v  # (B, T, head_size)
         return out
+    
+class FeedForward(nn.Module):
+    def __init__(self, n_embd):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(n_embd, 4* n_embd),
+            nn.ReLU(),
+            nn.Linear(4*n_embd, n_embd),
+        )
+
+    def forward(self, x):
+        return self.net(x)
+
 
 # class AvgHead(nn.Module):
 #     def __init__(self, head_size=None):
@@ -101,6 +114,7 @@ class BigramLanguageModel(nn.Module):
         self.emb_table = nn.Embedding(vocab_size, n_embd)
         self.positional_embd_table = nn.Embedding(block_size, n_embd)
         self.sa_head = MultiHeadAttention(4, n_embd//4)
+        self.ffwd = FeedForward(n_embd)
         self.lm_head = nn.Linear(n_embd, vocab_size)
         self.loss_fn = nn.CrossEntropyLoss()
 
@@ -110,6 +124,7 @@ class BigramLanguageModel(nn.Module):
         positional_emb = self.positional_embd_table(torch.arange(T, device=device))  # TxC
         x = token_emb + positional_emb
         x = self.sa_head(x)  # (B, T, C)
+        x = self.ffwd(x)  # (B, T, C)
         logits = self.lm_head(x)  # (B, T, vocab_size)
         
         B, T, C = logits.shape
