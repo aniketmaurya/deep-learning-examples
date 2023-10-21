@@ -9,7 +9,7 @@ eval_interval = 1000
 max_iter = 10000
 block_size = 8
 batch_size = 32
-
+device = "cpu"
 
 with open("input.txt", "r") as fr:
     text = fr.read()
@@ -34,8 +34,8 @@ def get_batch(split):
     data = train_data if split == "train" else val_data
     idx = torch.randint(len(data) - block_size, size=(batch_size,))
 
-    x = torch.stack([data[i : i + block_size] for i in idx])
-    y = torch.stack([data[i + 1 : i + block_size + 1] for i in idx])
+    x = torch.stack([data[i : i + block_size] for i in idx]).to(device)
+    y = torch.stack([data[i + 1 : i + block_size + 1] for i in idx]).to(device)
     return x, y
 
 @torch.no_grad()
@@ -43,7 +43,7 @@ def estimate_loss():
     model.eval()
     out = {}
     for split in ("train", "val"):
-        losses = torch.zeros(eval_iters)
+        losses = torch.zeros(eval_iters, device=device)
         for i in range(eval_iters):
             x, y = get_batch(split=split)
             logits, loss = model(x, y)
@@ -53,14 +53,13 @@ def estimate_loss():
     return out
 
 
-
 class Head(nn.Module):
     def __init__(self, head_size):
         super().__init__()
         self.key = nn.Linear(n_embd, head_size, bias=False)
         self.query = nn.Linear(n_embd, head_size, bias=False)
         self.value = nn.Linear(n_embd, head_size, bias=False)
-        self.register_buffer("tril", torch.tril(torch.ones(block_size, block_size)))
+        self.register_buffer("tril", torch.tril(torch.ones(block_size, block_size, device=device)))
     
     def forward(self, x):
         B, T, C = x.shape
@@ -87,20 +86,28 @@ class Head(nn.Module):
 #         out = wei @ x  # (B, T, C)
 #         return out
 
+class MultiHeadAttention(nn.Module):
+    def __init__(self, num_heads, head_size):
+        super().__init__()
+        self.heads = nn.ModuleList([Head(head_size) for _ in range(num_heads)])
+    
+    def forward(self, idx):
+        return torch.cat([head(idx) for head in self.heads], dim=-1)
+
 
 class BigramLanguageModel(nn.Module):
     def __init__(self) -> None:
         super().__init__()
         self.emb_table = nn.Embedding(vocab_size, n_embd)
         self.positional_embd_table = nn.Embedding(block_size, n_embd)
-        self.sa_head = Head(n_embd)
+        self.sa_head = MultiHeadAttention(4, n_embd//4)
         self.lm_head = nn.Linear(n_embd, vocab_size)
         self.loss_fn = nn.CrossEntropyLoss()
 
     def forward(self, idx, targets=None):
         B, T = idx.shape
         token_emb = self.emb_table(idx)  # B X T X C,  C => n_embd
-        positional_emb = self.positional_embd_table(torch.arange(T))  # TxC
+        positional_emb = self.positional_embd_table(torch.arange(T, device=device))  # TxC
         x = token_emb + positional_emb
         x = self.sa_head(x)  # (B, T, C)
         logits = self.lm_head(x)  # (B, T, vocab_size)
@@ -113,7 +120,7 @@ class BigramLanguageModel(nn.Module):
             loss = self.loss_fn(logits, targets)
         return logits, loss
 
-    def generate(self, idx, max_new_tokens=200):  # BT
+    def generate(self, idx, max_new_tokens=500):  # BT
         for _ in range(max_new_tokens):
             idx_cond = idx[:, -block_size:]
             logits, loss = self(idx_cond)  # BTC
@@ -125,6 +132,7 @@ class BigramLanguageModel(nn.Module):
 
 
 model = BigramLanguageModel()
+model.to(device)
 optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
 
 
@@ -141,4 +149,4 @@ for iter in track(range(max_iter), description="Training..."):
     optimizer.step()
 
 context = torch.zeros((1,1), dtype=torch.long)
-print(decode(model.generate(context)[0].tolist()))
+print(decode(model.generate(context)[0].cpu().tolist()))
