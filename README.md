@@ -2,9 +2,9 @@
 
 | Name              | Description |
 |-------------------|-------------|
+| [Distributed training](./src/distributed-training) |           |
+| [LLM Training & Inference](./src/large-model-training-inference)     |             |
 | [PyTorch Lightning](./src/pytorch_lightning) |             |
-| Fabric            |             |
-| Distributed training |           |
-| LLM Inference     |             |
+| [Fabric](.src/fabric)            |             |
 | PyTorch Compile   |             |
 | transformers      |             |
