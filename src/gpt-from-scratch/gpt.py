@@ -3,13 +3,18 @@ from rich.progress import track
 from torch import nn
 from torch.nn import functional as F
 
-n_embd = 32
-eval_iters = 100
-eval_interval = 1000
-max_iter = 10000
-block_size = 8
-batch_size = 32
-device = "cpu"
+eval_iters = 200
+eval_interval = 500
+max_iter = 5000
+block_size = 256
+batch_size = 64
+learning_rate = 3e-4
+device = "mps"# "cuda" if torch.cuda.is_available() else "cpu"
+
+n_embd = 384
+n_head = 6
+n_layer = 6
+dropout = 0.2
 
 with open("input.txt", "r") as fr:
     text = fr.read()
@@ -80,24 +85,12 @@ class FeedForward(nn.Module):
             nn.Linear(n_embd, 4* n_embd),
             nn.ReLU(),
             nn.Linear(4*n_embd, n_embd),
+            nn.Dropout(dropout),
         )
 
     def forward(self, x):
         return self.net(x)
 
-
-# class AvgHead(nn.Module):
-#     def __init__(self, head_size=None):
-#         super().__init__()
-#         self.register_buffer("tril", torch.tril(torch.ones(block_size, block_size)))
-    
-#     def forward(self, x):
-#         B, T, C = x.shape
-#         wei = torch.tril(torch.ones(T, T))
-#         wei = wei.masked_fill(self.tril[:T, :T]==0, float('-inf'))  # (B,T,T)
-#         wei = F.softmax(wei, dim=-1)  # (B, T, T)
-#         out = wei @ x  # (B, T, C)
-#         return out
 
 class MultiHeadAttention(nn.Module):
     def __init__(self, num_heads, head_size):
@@ -112,11 +105,13 @@ class Block(nn.Module):
         super().__init__()
         self.sa_head = MultiHeadAttention(head_size, n_embd//head_size)
         self.ffwd = FeedForward(n_embd)
+        self.ln1 = nn.LayerNorm(n_embd)
+        self.ln2 = nn.LayerNorm(n_embd)
     
     def forward(self, x):  # (B,T,C)
-        x = self.sa_head(x)
-        x = self.ffwd(x)
-        return x
+        x = x + self.sa_head(self.ln1(x))  # (B,T,C)
+        x = x + self.ffwd(self.ln2(x))  # (B,T,C)
+        return x  # (B,T,C)
 
 class BigramLanguageModel(nn.Module):
     def __init__(self) -> None:
@@ -128,6 +123,7 @@ class BigramLanguageModel(nn.Module):
             Block(n_embd=n_embd, head_size=4),
             Block(n_embd=n_embd, head_size=4),
             Block(n_embd=n_embd, head_size=4),
+            nn.LayerNorm(n_embd),
         )
         self.lm_head = nn.Linear(n_embd, vocab_size)
         self.loss_fn = nn.CrossEntropyLoss()
@@ -161,12 +157,12 @@ class BigramLanguageModel(nn.Module):
 
 model = BigramLanguageModel()
 model.to(device)
-optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
+optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
 
 
 for iter in track(range(max_iter), description="Training..."):
 
-    if iter % eval_interval == 0:
+    if (iter+1) % eval_interval == 0:
         losses = estimate_loss()
         print(f"Step: {iter}, train loss: {losses['train']:.4f}, val loss: {losses['val']:.4f}")
 
@@ -178,3 +174,4 @@ for iter in track(range(max_iter), description="Training..."):
 
 context = torch.zeros((1,1), dtype=torch.long)
 print(decode(model.generate(context)[0].cpu().tolist()))
+ 
