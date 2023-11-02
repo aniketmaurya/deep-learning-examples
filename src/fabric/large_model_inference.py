@@ -4,14 +4,8 @@ from pathlib import Path
 import torch
 from lightning.fabric import Fabric
 from lightning.fabric.strategies import FSDPStrategy
-from lit_gpt import GPT, Config, Tokenizer
+from lit_gpt import GPT, Config
 from lit_gpt.model import Block
-from lit_gpt.utils import (
-    check_valid_checkpoint_dir,
-    get_default_supported_precision,
-    load_checkpoint,
-    quantization,
-)
 
 checkpoint_dir = Path("/data/aniket/Llama-2-7b-hf/")
 config = Config.from_json(checkpoint_dir / "lit_config.json")

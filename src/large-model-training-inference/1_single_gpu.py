@@ -1,5 +1,4 @@
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 from pytorch_lightning.demos import Transformer, WikiText2
 from torch.utils.data import DataLoader

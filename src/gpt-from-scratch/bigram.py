@@ -47,7 +47,7 @@ for b in range(batch_size):
 #     def __init__(self, head_size=None):
 #         super().__init__()
 #         self.register_buffer("tril", torch.tril(torch.ones(block_size, block_size)))
-    
+
 #     def forward(self, x):
 #         B, T, C = x.shape
 #         wei = torch.tril(torch.ones(T, T))
@@ -55,6 +55,7 @@ for b in range(batch_size):
 #         wei = F.softmax(wei, dim=-1)  # (B, T, T)
 #         out = wei @ x  # (B, T, C)
 #         return out
+
 
 class BigramLanguageModel(nn.Module):
     def __init__(self, vocab_size: int) -> None:

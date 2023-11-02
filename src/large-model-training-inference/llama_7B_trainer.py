@@ -19,7 +19,7 @@ sys.path.append(str(wd))
 
 from lit_gpt import Config
 from lit_gpt.model import GPT, Block
-from lit_gpt.speed_monitor import SpeedMonitorCallback, estimate_flops, measure_flops
+from lit_gpt.speed_monitor import SpeedMonitorCallback
 from lit_gpt.utils import chunked_cross_entropy, get_default_supported_precision
 
 model_name = "Llama-2-7b-hf"
@@ -121,7 +121,7 @@ def main(
         dirpath=out_dir, every_n_train_steps=save_interval, save_last=True, verbose=True
     )
     trainer = L.Trainer(
-        devices=[1,2,3,4,5,7],
+        devices=[1, 2, 3, 4, 5, 7],
         strategy=strategy,
         precision=precision,
         logger=logger,

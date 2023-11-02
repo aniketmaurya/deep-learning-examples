@@ -1,6 +1,5 @@
 import lightning as L
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 from lightning.pytorch.demos import Transformer, WikiText2
 from lightning.pytorch.strategies import FSDPStrategy

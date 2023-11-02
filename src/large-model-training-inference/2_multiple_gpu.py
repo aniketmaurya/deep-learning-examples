@@ -49,14 +49,13 @@ model = LanguageModel(vocab_size=dataset.vocab_size)
 # Trainer
 callbacks = [RichProgressBar()]
 layers = {
-        nn.TransformerEncoderLayer,
-        nn.TransformerDecoderLayer,
-    }
-strategy = FSDPStrategy(
-    auto_wrap_policy=layers,
-    activation_checkpointing_policy=layers
+    nn.TransformerEncoderLayer,
+    nn.TransformerDecoderLayer,
+}
+strategy = FSDPStrategy(auto_wrap_policy=layers, activation_checkpointing_policy=layers)
+trainer = pl.Trainer(
+    accelerator="cuda", devices=[0, 5, 6, 7], callbacks=callbacks, strategy=strategy
 )
-trainer = pl.Trainer(accelerator="cuda", devices=[0, 5, 6, 7], callbacks=callbacks, strategy=strategy)
 
 trainer.print(f"Memory used: {torch.cuda.max_memory_allocated() / 1e9:.02f} GB")
 trainer.fit(model, train_dataloader)
