@@ -12,27 +12,22 @@ fabric = Fabric(precision="transformer-engine")
 fabric.launch()
 
 
-def main():
-    train_loader = load_data()
 
-    model = model = create_model("resnet50", num_classes=10)
-    criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+train_loader = load_data()
+model = model = create_model("resnet50", num_classes=10)
+criterion = nn.CrossEntropyLoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
-    # ⚡️⚡️⚡️⚡️⚡️ Setup model and optimizer with Fabric ⚡️⚡️⚡️⚡️⚡️
-    model, optimizer = fabric.setup(model, optimizer)
-    # setup dataloader with Fabric
-    train_loader = fabric.setup_dataloaders(train_loader)
+# ⚡️⚡️⚡️⚡️⚡️ Setup model and optimizer with Fabric ⚡️⚡️⚡️⚡️⚡️
+model, optimizer = fabric.setup(model, optimizer)
+# setup dataloader with Fabric
+train_loader = fabric.setup_dataloaders(train_loader)
 
-    for i in range(2):
-        for x, y in tqdm(train_loader):
-            optimizer.zero_grad()
-            logits = model(x)
-            loss = criterion(logits, y)
-            # ⚡️⚡️⚡️⚡️⚡️ fabric.backward(...) instead of loss.backward() ⚡️⚡️⚡️⚡️⚡️
-            fabric.backward(loss)
-            optimizer.step()
-
-
-if __name__ == "__main__":
-    main()
+for i in range(2):
+    for x, y in tqdm(train_loader):
+        optimizer.zero_grad()
+        logits = model(x)
+        loss = criterion(logits, y)
+        # ⚡️⚡️⚡️⚡️⚡️ fabric.backward(...) instead of loss.backward() ⚡️⚡️⚡️⚡️⚡️
+        fabric.backward(loss)
+        optimizer.step()
