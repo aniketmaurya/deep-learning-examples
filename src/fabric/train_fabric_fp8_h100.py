@@ -4,7 +4,7 @@ import torchvision.transforms as transforms
 from lightning.fabric import Fabric
 from timm import create_model
 from tqdm import tqdm
-from data import load_data
+from data import load_cifar10
 
 
 # Select 8bit mixed precision via TransformerEngine, with model weights in bfloat16
@@ -13,7 +13,7 @@ fabric.launch()
 
 
 
-train_loader = load_data()
+train_loader = load_cifar10()
 model = model = create_model("resnet50", num_classes=10)
 criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
