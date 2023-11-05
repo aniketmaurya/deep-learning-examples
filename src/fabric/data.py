@@ -8,7 +8,7 @@ from lightning.fabric.plugins import TransformerEnginePrecision
 from tqdm import tqdm
 
 
-def load_data():
+def load_cifar10():
     transform = transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
     )
