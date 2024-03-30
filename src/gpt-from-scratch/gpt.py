@@ -74,7 +74,7 @@ class Head(nn.Module):
             "tril", torch.tril(torch.ones(block_size, block_size, device=device))
         )
 
-        self.dropout = nn.Dropout(dropout=dropout)
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
         B, T, C = x.shape
