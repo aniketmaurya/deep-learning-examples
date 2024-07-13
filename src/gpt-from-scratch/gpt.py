@@ -114,9 +114,10 @@ class MultiHeadAttention(nn.Module):
 
 
 class Block(nn.Module):
-    def __init__(self, n_embd, head_size):
+    def __init__(self, n_embd, num_heads):
         super().__init__()
-        self.sa_head = MultiHeadAttention(head_size, n_embd // head_size)
+        head_size = n_embd // num_heads
+        self.sa_head = MultiHeadAttention(num_heads, head_size)
         self.ffwd = FeedForward(n_embd)
         self.ln1 = nn.LayerNorm(n_embd)
         self.ln2 = nn.LayerNorm(n_embd)
@@ -127,24 +128,24 @@ class Block(nn.Module):
         return x  # (B,T,C)
 
 
-class BigramLanguageModel(nn.Module):
+class GPTLanguageModel(nn.Module):
     def __init__(self) -> None:
         super().__init__()
-        self.emb_table = nn.Embedding(vocab_size, n_embd)
-        self.positional_embd_table = nn.Embedding(block_size, n_embd)
+        self.emb_table = nn.Embedding(vocab_size, n_embd) # vocab_size X n_embd
+        self.positional_embd_table = nn.Embedding(block_size, n_embd) # block_size X n_embd
         self.block = nn.Sequential(
-            Block(n_embd=n_embd, head_size=4),
-            Block(n_embd=n_embd, head_size=4),
-            Block(n_embd=n_embd, head_size=4),
-            Block(n_embd=n_embd, head_size=4),
+            Block(n_embd=n_embd, num_heads=4),
+            Block(n_embd=n_embd, num_heads=4),
+            Block(n_embd=n_embd, num_heads=4),
+            Block(n_embd=n_embd, num_heads=4),
             nn.LayerNorm(n_embd),
         )
         self.lm_head = nn.Linear(n_embd, vocab_size)
         self.loss_fn = nn.CrossEntropyLoss()
 
     def forward(self, idx, targets=None):
-        B, T = idx.shape
-        token_emb = self.emb_table(idx)  # B X T X C,  C => n_embd
+        B, T = idx.shape # B X T
+        token_emb = self.emb_table(idx) # B X T X C,  C => n_embd
         positional_emb = self.positional_embd_table(
             torch.arange(T, device=device)
         )  # TxC
@@ -171,7 +172,7 @@ class BigramLanguageModel(nn.Module):
         return idx
 
 
-model = BigramLanguageModel()
+model = GPTLanguageModel()
 model.to(device)
 optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
 
