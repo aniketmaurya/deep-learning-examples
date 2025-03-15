@@ -94,52 +94,56 @@ class Attention(nn.Module):
         self.n_heads = params.n_heads
         self.dim = params.dim
         self.device = params.device
+        self.max_seq_len = params.max_seq_len
+        self.max_batch_size = params.max_batch_size
 
         self.q_proj = nn.Linear(params.dim, params.n_heads * self.head_dim, bias=False)
         self.k_proj = nn.Linear(params.dim, params.n_kv_heads * self.head_dim, bias=False)
         self.v_proj = nn.Linear(params.dim, params.n_kv_heads * self.head_dim, bias=False)
-        self.o_proj = nn.Linear(params.dim, params.n_heads * self.head_dim, bias=False)
+        self.o_proj = nn.Linear(params.n_heads * self.head_dim, params.dim, bias=False)  # Fixed output dim
 
-        self.k_cache = torch.zeros(params.max_batch_size, params.max_seq_len, params.n_kv_heads, self.head_dim)
-        self.v_cache = torch.zeros(params.max_batch_size, params.max_seq_len, params.n_kv_heads, self.head_dim)
+        self.k_cache = None
+        self.v_cache = None
 
-    def forward(self, x, start_pos, freq_cis, mask):
-        # x: (batch, seq_len, dim)
+    def forward(self, x, start_pos, freqs_cis, mask):
         bsz, seq_len, _ = x.shape
 
-        xq = self.q_proj(x)  # (batch, seq_len, n_heads x head_dim)
-        xk = self.k_proj(x)  # (batch, seq_len, n_kv_heads x head_dim)
-        xv = self.v_proj(x)  # (batch, seq_len, n_kv_heads x head_dim)
+        # Initialize or reset cache if needed
+        if self.k_cache is None or self.k_cache.shape[0] != bsz or self.k_cache.device != x.device:
+            self.k_cache = torch.zeros(bsz, self.max_seq_len, self.n_kv_heads, self.head_dim, device=x.device)
+            self.v_cache = torch.zeros(bsz, self.max_seq_len, self.n_kv_heads, self.head_dim, device=x.device)
 
-        xq = xq.view(bsz, seq_len, self.n_heads, self.head_dim)  # (batch, seq_len, n_heads, head_dim)
-        xk = xk.view(bsz, seq_len, self.n_kv_heads, self.head_dim)  # (batch, seq_len, n_kv_heads, head_dim)
-        xv = xv.view(bsz, seq_len, self.n_kv_heads, self.head_dim)  # (batch, seq_len, n_kv_heads, head_dim)
+        # Projections and reshaping
+        xq = self.q_proj(x).view(bsz, seq_len, self.n_heads, self.head_dim)
+        xk = self.k_proj(x).view(bsz, seq_len, self.n_kv_heads, self.head_dim)
+        xv = self.v_proj(x).view(bsz, seq_len, self.n_kv_heads, self.head_dim)
 
-        xq, xk = apply_rotary_emb(xq, xk, freqs_cis=freq_cis)
+        xq, xk = apply_rotary_emb(xq, xk, freqs_cis=freqs_cis)
 
-        self.k_cache.to(self.device)
-        self.v_cache.to(self.device)
+        # Update cache
+        self.k_cache[:bsz, start_pos:start_pos + seq_len] = xk
+        self.v_cache[:bsz, start_pos:start_pos + seq_len] = xv
 
-        self.k_cache[:bsz, start_pos: start_pos + seq_len] = xk
-        self.v_cache[:bsz, start_pos: start_pos + seq_len] = xv
+        # Retrieve full keys and values
+        xk = self.k_cache[:bsz, :start_pos + seq_len]
+        xv = self.v_cache[:bsz, :start_pos + seq_len]
 
-        xk = self.k_cache[:bsz, : start_pos + seq_len]
-        xv = self.v_cache[:bsz, : start_pos + seq_len]
-
+        # Repeat KV for GQA
         xk = torch.repeat_interleave(xk, dim=2, repeats=self.n_reps)
         xv = torch.repeat_interleave(xv, dim=2, repeats=self.n_reps)
 
-        xq = xq.transpose(1, 2)  # (batch, n_heads, seq_len, head_dim)
-        xk = xk.transpose(1, 2)  # (batch, n_heads, seq_len, head_dim)
-        xv = xv.transpose(1, 2)  # (batch, n_heads, seq_len, head_dim)
-        scores = torch.matmul(xq, xk.transpose(2, 3)) / self.head_dim ** 0.5  # (batch, n_heads, seq_len, seq_len)
+        # Attention computation
+        xq = xq.transpose(1, 2)  # (bsz, n_heads, seq_len, head_dim)
+        xk = xk.transpose(1, 2)  # (bsz, n_heads, seq_len + start_pos, head_dim)
+        xv = xv.transpose(1, 2)  # (bsz, n_heads, seq_len + start_pos, head_dim)
 
+        scores = torch.matmul(xq, xk.transpose(2, 3)) / (self.head_dim ** 0.5)  # (bsz, n_heads, seq_len, seq_len + start_pos)
         if mask is not None:
-            scores = scores + mask  # TODO: follow up
+            scores = scores + mask  # Broadcasting needs mask shape (seq_len, start_pos + seq_len)
 
         scores = F.softmax(scores.float(), dim=-1).type_as(xq)
-        output = torch.matmul(scores, xv)  # (batch, n_heads, seq_len, head_dim)
-        output = output.transpose(1, 2).contiguous().view(bsz, seq_len, -1)  # (batch, seq_len, n_heads, head_dim)
+        output = torch.matmul(scores, xv)  # (bsz, n_heads, seq_len, head_dim)
+        output = output.transpose(1, 2).contiguous().view(bsz, seq_len, -1)  # (bsz, seq_len, dim)
         return self.o_proj(output)
 
 
