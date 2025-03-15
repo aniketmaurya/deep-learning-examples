@@ -1,11 +1,6 @@
-from typing import Tuple
-import os
-
-os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
-
 import torch
 import torch.nn.functional as F
-
+from torch.nn import RMSNorm
 from dataclasses import dataclass
 from typing import Optional
 from torch import nn
@@ -24,7 +19,7 @@ class ModelArgs:
     norm_eps: float = 1e-5
     rope_theta: float = 500000.0
 
-    max_batch_size: int = 4
+    max_batch_size: int = 2
     max_seq_len: int = 2048
     use_scaled_rope = False
 
@@ -41,7 +36,7 @@ def reshape_for_broadcast(freqs_cis: torch.Tensor, x: torch.Tensor):
     ndim = x.ndim
     assert 0 <= 1 < ndim
     assert freqs_cis.shape == (
-    x.shape[1], x.shape[-1]), f"shape mismatch {freqs_cis.shape}, {(x.shape[1], x.shape[-1])}"
+        x.shape[1], x.shape[-1]), f"shape mismatch {freqs_cis.shape}, {(x.shape[1], x.shape[-1])}"
     shape = [d if i == 1 or i == ndim - 1 else 1 for i, d in enumerate(x.shape)]
     return freqs_cis.view(*shape)
 
@@ -61,24 +56,16 @@ def apply_rotary_emb(
 
 
 class MLP(nn.Module):
-    def __init__(
-            self,
-            dim,
-            hidden_dim,
-            multiple_of,
-            ffn_dim_multiplier: Optional[float] = None,
-    ):
+    def __init__(self, dim, hidden_dim, multiple_of, ffn_dim_multiplier=None):
         super().__init__()
-        hidden_dim = int(2 * hidden_dim / 3)
+        # Use hidden_dim directly as intermediate_size (8192 for Llama-3.2-1B)
         if ffn_dim_multiplier is not None:
             hidden_dim = int(ffn_dim_multiplier * hidden_dim)
         hidden_dim = multiple_of * ((hidden_dim + multiple_of - 1) // multiple_of)
 
-        self.gate_proj = nn.Linear(in_features=dim, out_features=hidden_dim, bias=False)
-        self.up_proj = nn.Linear(in_features=dim, out_features=hidden_dim, bias=False)
-        self.down_proj = nn.Linear(in_features=hidden_dim, out_features=dim, bias=False)
-
-        # SiLU activation function
+        self.gate_proj = nn.Linear(dim, hidden_dim, bias=False)
+        self.up_proj = nn.Linear(dim, hidden_dim, bias=False)
+        self.down_proj = nn.Linear(hidden_dim, dim, bias=False)
         self.act_fn = nn.SiLU()
 
     def forward(self, x):
@@ -137,7 +124,8 @@ class Attention(nn.Module):
         xk = xk.transpose(1, 2)  # (bsz, n_heads, seq_len + start_pos, head_dim)
         xv = xv.transpose(1, 2)  # (bsz, n_heads, seq_len + start_pos, head_dim)
 
-        scores = torch.matmul(xq, xk.transpose(2, 3)) / (self.head_dim ** 0.5)  # (bsz, n_heads, seq_len, seq_len + start_pos)
+        scores = torch.matmul(xq, xk.transpose(2, 3)) / (
+                self.head_dim ** 0.5)  # (bsz, n_heads, seq_len, seq_len + start_pos)
         if mask is not None:
             scores = scores + mask  # Broadcasting needs mask shape (seq_len, start_pos + seq_len)
 
@@ -153,7 +141,7 @@ class TransformerBlock(nn.Module):
         self.self_attn = Attention(params)
         self.mlp = MLP(params.dim, 4 * params.dim, params.multiple_of, params.ffn_dim_multiplier)
         self.input_layernorm = nn.RMSNorm(params.dim, eps=params.norm_eps)
-        self.post_attention_layernorm = nn.RMSNorm(params.dim, eps=params.norm_eps)
+        self.post_attention_layernorm = RMSNorm(params.dim, eps=params.norm_eps)
 
     def forward(self, x, start_pos, freq_cis, mask):
         h = x + self.self_attn(self.input_layernorm(x), start_pos, freq_cis, mask)
@@ -168,7 +156,7 @@ class Transformer(nn.Module):
         self.embed_tokens = nn.Embedding(params.vocab_size, params.dim)
         self.layers = nn.ModuleList([TransformerBlock(params) for _ in range(params.n_layers)])
         self.norm = nn.RMSNorm(params.dim, eps=params.norm_eps)
-        self.lm_head = nn.Linear(params.dim, params.vocab_size)
+        self.lm_head = nn.Linear(params.dim, params.vocab_size, bias=False)
 
         self.freqs_cis = precompute_freqs_cis(
             params.dim // params.n_heads,
